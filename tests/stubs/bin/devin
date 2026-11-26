@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+"""Stub `devin` CLI for tests — deterministic agent outputs, no network.
+
+Driven by the --prompt-file basename:
+  agent-a-trends.md      → work/research-trends.json
+  agent-b-seo.md         → work/topics.json
+  agent-c-*              → work/slots/N/{brief,dossier}.md
+  agent-d-*              → work/slots/N/article.mdx + featured.svg
+  agent-e-*              → prints VERDICT line (STUB_EDITOR_VERDICT env)
+  build-fix-*            → touches article.mdx
+  weekly-review          → work/weekly-review.md + weekly-updates.json
+
+Env controls:
+  STUB_EDITOR_VERDICT=approve|revise|reject   (default approve)
+  STUB_FAIL_STAGE=<prompt-basename-prefix>    → exit 3 for matching stage
+  STUB_ARTICLE_WORDS=N                         (default 900)
+"""
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+slug = os.environ.get("STUB_SLUG", "learning-claude-code-hooks")
+
+
+def _out_path(prompt_name: str) -> Path:
+    # prompt files live in <workdir>/prompts/<name>.md; cwd == workdir
+    return Path.cwd()
+
+
+def _slot_dir(prompt_name: str) -> Path:
+    m = re.search(r"-s(\d+)", prompt_name)
+    slot = m.group(1) if m else "1"
+    d = Path.cwd() / "work" / "slots" / slot
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+ARTICLE_BODY = """## Why hooks matter for real automation
+
+If you have been using Claude Code for more than a few days, you have probably wished it could run a command automatically every time it edits a file — a formatter, a test, a linter. Hooks are the mechanism that does exactly that: they are user-defined shell commands that fire at defined points in the agent's lifecycle.
+
+This guide builds three hooks from scratch. By the end you will have a formatting hook that runs after every file edit, a test hook that runs your test suite after implementation work, and a notification hook that pings you when the agent finishes. Everything uses free, local tools — the only requirement is a working Claude Code install.
+
+## How hooks actually work
+
+A hook is a shell command Claude Code executes when a lifecycle event fires. Events include `PreToolUse` (before a tool runs), `PostToolUse` (after a tool runs), `Notification`, `UserPromptSubmit`, and `Stop`. Each hook declares a matcher — a tool name or pattern — so a `PostToolUse` hook can fire only on `Write` or `Edit`, for instance.
+
+Hooks are defined in JSON inside `settings.json`, either per-project at `.claude/settings.json` or globally at `~/.claude/settings.json`. When the event fires, Claude Code passes a JSON payload describing the tool call to your command over stdin, and interprets the exit code: zero means continue, a non-zero exit can block the tool call (for `PreToolUse`) or surface feedback to the agent.
+
+## Hook 1: auto-format after edits
+
+The most useful starter hook formats every file the agent writes. Create a `PostToolUse` hook matching `Write|Edit` that pipes the file path from stdin into your formatter — `prettier --write`, `black`, or `rustfmt` depending on the project. The formatter runs silently after each edit, so diffs stay clean without the agent remembering to format.
+
+A minimal config looks like a JSON object with `hooks.PostToolUse` holding an array of `{matcher, hooks}` pairs, each hook a `{type: "command", command: "…"}` entry. The [official hooks documentation](https://docs.anthropic.com/) shows the full event payload schema — worth keeping open while you test.
+
+## Hook 2: run tests after implementation
+
+The second hook runs your test suite after a `Bash` tool call that looks like an implementation step. Keep the command fast — hooks block the agent loop. If the suite is slow, scope it to the touched package or use a `--changed` mode rather than the full suite.
+
+The test hook uses exit-code feedback: when tests fail, a non-zero exit plus a message on stderr gives the agent the failure output so it can fix the code immediately instead of shipping a red build.
+
+## Hook 3: desktop notification on finish
+
+The `Notification` event fires when the agent wants your attention or finishes a run. A one-line command with `notify-send` (Linux) or `osascript` (macOS) drops a desktop ping — genuinely useful for long refactors you kick off and walk away from.
+
+## Mistakes to avoid
+
+Do not run slow commands in blocking hooks — the agent waits on them. Do not let hooks write to the same files the agent is editing mid-run. And keep hook commands idempotent: they fire far more often than you expect while the agent works.
+
+## FAQ
+
+**Do hooks work in CI?** Yes — settings.json is just configuration, and the same file-based setup applies on a runner.
+
+**Can a hook stop the agent?** A `PreToolUse` hook with a non-zero exit blocks the tool call entirely — useful as a guardrail for dangerous commands.
+
+**Where do hook payloads go?** Stdin as JSON, including the tool name, inputs, and the session metadata — log it once to see the full shape.
+"""
+
+
+def _article() -> str:
+    front = f"""---
+title: "Claude Code Hooks: Automate Your Agent Workflow"
+description: "Set up Claude Code hooks that format code after every edit, run tests after implementation, and ping you when the agent finishes — step by step."
+status: draft
+publishDate: 2026-11-26
+category: ai
+author: Digital Tech Adviser
+tags: [ai, claude-code, automation, developer-tools]
+keywords: [claude code hooks, claude code automation, hooks tutorial, agent workflow]
+featuredImageAlt: "Illustration of a hook catching a file-edit event and firing three commands"
+seoTitle: "Claude Code Hooks: Automate Your Agent Workflow"
+seoDescription: "Build three Claude Code hooks: auto-format after edits, run tests after implementation, and get notified on finish. Step-by-step, no fluff."
+faq:
+  - q: "Do Claude Code hooks work in CI?"
+    a: "Yes — hooks are defined in settings.json, which works identically on a runner as long as Claude Code is installed and authenticated."
+  - q: "Can a hook block a dangerous command?"
+    a: "A PreToolUse hook with a non-zero exit code blocks the tool call — a practical guardrail for destructive operations."
+---"""
+    words_needed = int(os.environ.get("STUB_ARTICLE_WORDS", "900"))
+    body = ARTICLE_BODY
+    # pad with a realistic paragraph loop until word target met
+    pad = ("\n\nHooks compose well with [the existing guide on AI agents](/ai/existing-topic) "
+           "and pair naturally with [the site's tooling guides](/guides). For deeper payload details, "
+           "the [official documentation](https://docs.anthropic.com/) is the reference to check.\n")
+    while len(body.split()) < words_needed:
+        body += pad
+    return front + "\n" + body
+
+
+FEATURED_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#e6f4ef"/>
+  <rect x="40" y="40" width="1120" height="550" fill="none" stroke="#0e7c5b" stroke-width="2" opacity="0.25"/>
+  <circle cx="600" cy="300" r="70" fill="none" stroke="#0e7c5b" stroke-width="10"/>
+  <path d="M 600 230 v -40 a 30 30 0 0 1 60 0" fill="none" stroke="#f5b841" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="600" cy="300" r="16" fill="#0e7c5b"/>
+  <text x="70" y="560" font-family="Georgia, 'Times New Roman', serif" font-size="26" letter-spacing="6" fill="#0e7c5b">DIGITAL TECH ADVISER</text>
+  <text x="1130" y="560" font-family="Georgia, 'Times New Roman', serif" font-size="20" letter-spacing="3" fill="#0e7c5b" opacity="0.75" text-anchor="end">ARTIFICIAL INTELLIGENCE</text>
+</svg>"""
+
+
+def main() -> int:
+    args = sys.argv[1:]
+    prompt_file = ""
+    if "--prompt-file" in args:
+        prompt_file = args[args.index("--prompt-file") + 1]
+    name = Path(prompt_file).name if prompt_file else ""
+    cwd = _out_path(name)
+
+    fail = os.environ.get("STUB_FAIL_STAGE", "")
+    if fail and name.startswith(fail):
+        print("stub: simulated failure", file=sys.stderr)
+        return 3
+
+    if name.startswith("agent-a-"):
+        (cwd / "work").mkdir(exist_ok=True)
+        (cwd / "work" / "research-trends.json").write_text(json.dumps({
+            "generated_at": "2026-11-26",
+            "candidates": [{
+                "topic": "Claude Code hooks",
+                "primary_keyword": "claude code hooks",
+                "intent": "informational",
+                "cluster": "ai-automation-skills",
+                "why_now": "practitioner demand for agent automation patterns",
+                "source_urls": ["https://docs.anthropic.com/"],
+            }],
+        }))
+        print("AGENT_A: wrote work/research-trends.json — 1 candidates")
+        return 0
+
+    if name.startswith("agent-b-"):
+        (cwd / "work" / "topics.json").write_text(json.dumps({
+            "generated_at": "2026-11-26",
+            "selected": [{
+                "slug": slug,
+                "primary_keyword": "claude code hooks",
+                "secondary_keywords": ["claude code automation", "hooks tutorial"],
+                "intent": "informational",
+                "cluster": "ai-automation-skills",
+                "collection": "articles",
+                "category": "ai",
+                "angle": "build three real hooks, not a feature tour",
+                "content_gap": "existing results are reference docs, not build-alongs",
+                "must_cover": ["settings.json layout", "exit codes", "stdin payload"],
+                "internal_link_ideas": ["/ai/existing-topic", "/guides"],
+                "hands_on": False,
+                "evidence": "docs-only SERP, rising practitioner queries",
+            }],
+            "rejected": [],
+        }))
+        print("AGENT_B: wrote work/topics.json — 1 selected, 0 rejected")
+        return 0
+
+    if name.startswith("agent-c-"):
+        sd = _slot_dir(name)
+        (sd / "brief.md").write_text("# Brief\n\nprimary keyword: claude code hooks\n"
+                                     "internal links: /ai/existing-topic, /guides\n")
+        (sd / "dossier.md").write_text("# Dossier\n\n- hooks defined in settings.json "
+                                     "(source: https://docs.anthropic.com/, verified 2026-11-26)\n")
+        print(f"AGENT_C: wrote work/slots/{sd.name}/brief.md + dossier.md (1 sourced facts)")
+        return 0
+
+    if name.startswith("agent-d-"):
+        sd = _slot_dir(name)
+        (sd / "article.mdx").write_text(_article())
+        (sd / "featured.svg").write_text(FEATURED_SVG)
+        print(f"AGENT_D: wrote work/slots/{sd.name}/article.mdx + featured.svg")
+        return 0
+
+    if name.startswith("agent-e-"):
+        verdict = os.environ.get("STUB_EDITOR_VERDICT", "approve")
+        print(f"editor review complete\nVERDICT: {verdict}")
+        return 0
+
+    if name.startswith("build-fix"):
+        print("BUILD_FIX: updated article.mdx")
+        return 0
+
+    if name == "weekly-review.md":
+        (cwd / "work").mkdir(exist_ok=True)
+        (cwd / "work" / "weekly-review.md").write_text("# Weekly review\n")
+        (cwd / "work" / "weekly-updates.json").write_text(json.dumps(
+            {"proposed_topics": [], "internal_link_backlog": []}))
+        print("WEEKLY: wrote review + updates (0 topics proposed)")
+        return 0
+
+    print("stub devin: no matching behavior", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

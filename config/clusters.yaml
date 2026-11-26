@@ -1,0 +1,41 @@
+# AI skills content clusters — the topical-authority map.
+# Agent A generates candidates within these clusters; Agent B picks across
+# clusters so the site builds interconnected authority rather than chasing
+# unrelated keywords. Slugs are what agents cite in topic.cluster.
+clusters:
+  - slug: ai-skills-beginners
+    label: AI skills for beginners
+    focus: first-principles explainers, what-to-learn-first, honest getting-started paths
+  - slug: ai-skills-professionals
+    label: AI skills for working professionals
+    focus: applying AI inside existing roles — ops, marketing, engineering, analysis
+  - slug: ai-automation-skills
+    label: AI automation skills
+    focus: workflow automation, n8n/Zapier/Make + AI, integrations, building real systems
+  - slug: ai-agent-development
+    label: AI agent development
+    focus: agents, MCP, tool use, orchestration, evals, building agentic systems
+  - slug: prompt-engineering
+    label: Prompt engineering
+    focus: prompting techniques that measurably work, structured outputs, context management
+  - slug: ai-tools-workflows
+    label: AI tools and practical workflows
+    focus: hands-on tool tutorials, honest comparisons, repeatable workflows
+  - slug: ai-careers-jobs
+    label: AI careers and job opportunities
+    focus: role definitions, real requirements, honest expectations — no hype
+  - slug: ai-skills-entrepreneurs
+    label: AI skills for entrepreneurs
+    focus: leverage for small businesses, automation ROI, building with AI
+  - slug: ai-skills-freelancers
+    label: AI skills for freelancers
+    focus: service packaging, delivery workflows, positioning AI skills
+  - slug: ai-learning-roadmaps
+    label: AI learning roadmaps
+    focus: sequenced paths, free resources, realistic timelines, checkpoints
+  - slug: ai-practical-projects
+    label: Practical AI projects
+    focus: build-along projects that teach transferable skills, portfolio work
+  - slug: emerging-ai-tech
+    label: Emerging AI technologies
+    focus: new frameworks/techniques worth knowing — assessed, not hyped
