@@ -81,11 +81,13 @@ jobs:
       - name: Install SVG rasterizer
         run: sudo apt-get update -qq && sudo apt-get install -y -qq librsvg2-bin
 
-      - name: Install Devin CLI
+      - name: Install Devin CLI + credentials
+        env:
+          DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+          DEVIN_CREDENTIALS_TOML: ${{ secrets.DEVIN_CREDENTIALS_TOML }}
         run: |
-          curl -fsSL https://cli.devin.ai/install.sh | bash
+          bash scripts/setup-devin.sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          devin --version || true
 
       - name: Pre-flight check
         env:

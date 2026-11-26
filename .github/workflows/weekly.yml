@@ -34,9 +34,12 @@ jobs:
       - run: pip install --no-input -r requirements.txt
       - if: env.HAS_GSC == 'true'
         run: pip install --no-input google-api-python-client google-auth
-      - name: Install Devin CLI
+      - name: Install Devin CLI + credentials
+        env:
+          DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+          DEVIN_CREDENTIALS_TOML: ${{ secrets.DEVIN_CREDENTIALS_TOML }}
         run: |
-          curl -fsSL https://cli.devin.ai/install.sh | bash
+          bash scripts/setup-devin.sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Run weekly review
         env:

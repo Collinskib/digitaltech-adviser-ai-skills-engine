@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the Devin CLI and (optionally) materialize credentials.toml.
+# Install the Devin CLI and materialize credentials.toml.
 #
 # Env:
 #   DEVIN_API_KEY            — windsurf_api_key value (from `devin auth login`)
@@ -8,16 +8,19 @@
 #   DEVIN_API_URL            — default https://api.devin.ai
 #   DEVIN_WEBAPP_HOST        — default https://app.devin.ai
 #
-# The engine's ensure_credentials() also performs the credentials step at
-# runtime; this script exists so CI and local runs share one installer.
+# NOTE: the upstream installer ends with `devin setup`, an interactive
+# first-run flow that fails on a headless runner. The binary is already
+# installed by then, so we feed it a closed stdin and ignore the failure.
+# Credentials are written BEFORE any further devin invocation — an
+# unauthenticated `devin` call would otherwise trigger the same login flow.
 set -euo pipefail
 
 if ! command -v devin >/dev/null 2>&1; then
   echo "installing devin cli…"
-  curl -fsSL https://cli.devin.ai/install.sh | bash
+  curl -fsSL https://cli.devin.ai/install.sh | bash </dev/null || true
 fi
 export PATH="$HOME/.local/bin:$PATH"
-devin --version
+command -v devin   # must exist — real failure if the install itself broke
 
 if [ -n "${DEVIN_CREDENTIALS_TOML:-}" ]; then
   mkdir -p "$HOME/.local/share/devin"
@@ -37,3 +40,7 @@ EOF
 else
   echo "no DEVIN_API_KEY / DEVIN_CREDENTIALS_TOML — expecting existing credentials.toml"
 fi
+
+# auth check (server round-trip); informational — the pipeline's check-setup
+# is the authoritative gate
+devin auth status 2>&1 | head -8 || true
