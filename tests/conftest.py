@@ -93,6 +93,9 @@ def stub_env(tmp_path: Path, site_repo: Path, monkeypatch):
         "WORKDIR_ROOT": str(workdir_root),
         "NOTIFY_ISSUES": "false",
         "DRY_RUN": "false",
+        # CI sets DEVIN_MODEL='' when the repo var is unset — the engine must
+        # strip empty DEVIN_* env vars before invoking the CLI (real CLI errors)
+        "DEVIN_MODEL": "",
     }
     for k, v in env.items():
         monkeypatch.setenv(k, v)

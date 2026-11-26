@@ -133,6 +133,12 @@ def main() -> int:
         print("stub: simulated failure", file=sys.stderr)
         return 3
 
+    # the real CLI reads DEVIN_MODEL from env — empty value errors out.
+    # Mimic it so tests catch env leakage (engine must strip empty DEVIN_*).
+    if "DEVIN_MODEL" in os.environ and not os.environ["DEVIN_MODEL"]:
+        print("Error: Unknown model: ''", file=sys.stderr)
+        return 1
+
     if name.startswith("agent-a-"):
         (cwd / "work").mkdir(exist_ok=True)
         (cwd / "work" / "research-trends.json").write_text(json.dumps({

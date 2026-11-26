@@ -99,6 +99,9 @@ class DevinRunner:
         out_file = self.out_dir / f"{name}.log"
         cmd = self._cmd(prompt_file)
         log.emit(f"devin: running stage '{name}' (timeout {timeout or self.cfg.devin_timeout_sec}s)")
+        # the CLI reads DEVIN_MODEL / DEVIN_PERMISSION_MODE / etc. straight from
+        # env — an empty value errors ("Unknown model: ''"), so drop empties
+        env = {k: v for k, v in os.environ.items() if v or not k.startswith("DEVIN_")}
         try:
             proc = subprocess.run(
                 cmd,
@@ -107,6 +110,7 @@ class DevinRunner:
                 stderr=subprocess.STDOUT,
                 text=True,
                 timeout=timeout or self.cfg.devin_timeout_sec,
+                env=env,
             )
             output = proc.stdout or ""
             rc = proc.returncode
