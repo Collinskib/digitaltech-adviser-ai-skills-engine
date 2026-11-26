@@ -17,7 +17,11 @@ set -euo pipefail
 
 if ! command -v devin >/dev/null 2>&1; then
   echo "installing devin cli…"
-  curl -fsSL https://cli.devin.ai/install.sh | bash </dev/null || true
+  # run from a file (not a pipe) so </dev/null hits `devin setup` inside
+  # the script, not bash's own stdin
+  curl -fsSL https://cli.devin.ai/install.sh -o /tmp/devin-install.sh
+  bash /tmp/devin-install.sh </dev/null || true
+  rm -f /tmp/devin-install.sh
 fi
 export PATH="$HOME/.local/bin:$PATH"
 command -v devin   # must exist — real failure if the install itself broke
